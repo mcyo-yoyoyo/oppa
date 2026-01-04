@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>闲“侠”时光 - 你的专属美发顾问</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- LeanCloud Storage SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.15.0/dist/av-min.js"></script>
+
+    <!-- Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body { -webkit-tap-highlight-color: transparent; }
+        .animate-bounce-in { animation: bounceIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
+        @keyframes bounceIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        /* 隐藏滚动条但保留功能 */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- LeanCloud 配置 ---
+        const AV_CONFIG = {
+            appId: "IP3GQzAy0794rbClOuGlpKfq-gzGzoHsz",
+            appKey: "cDMpqgZWdSlmHdRf6S4E1OeO",
+            serverURL: "https://ip3gqzay.lc-cn-n1-shared.com"
+        };
+
+        // --- 全局常量 ---
+        const ADMIN_CODE = "yeyixia888"; // 后台管理密码
+        const TIME_SLOTS = [
+            "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", 
+            "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"
+        ];
+        
+        // --- 通用工具函数 ---
+        const formatDate = (date) => {
+            const d = new Date(date);
+            let month = '' + (d.getMonth() + 1);
+            let day = '' + d.getDate();
+            const year = d.getFullYear();
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+            return [year, month, day].join('-');
+        };
+
+        const getRelativeDate = (daysOffset) => {
+            const date = new Date();
+            date.setDate(date.getDate() + daysOffset);
+            return formatDate(date);
+        };
+
+        // 微信一键触达核心功能
+        const sendWeChatMsg = (text) => {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('消息内容已成功复制到剪贴板！\n即将尝试打开微信，请在微信对话框粘贴并发送给对方。');
+                window.location.href = "weixin://";
+            } catch (err) {
+                alert('复制失败，请手动选择并复制：\n' + text);
+            }
+            document.body.removeChild(textarea);
+        };
+
+        // --- 主容器组件 ---
+        function App() {
+            const [isInitialized, setIsInitialized] = React.useState(false);
+            const [view, setView] = React.useState('loading');
+            const [userData, setUserData] = React.useState({ name: '', phone: '', role: 'customer' });
+
+            // 增强版 SDK 初始化检测
+            React.useEffect(() => {
+                const initSDK = () => {
+                    if (typeof AV !== 'undefined') {
+                        try {
+                            if (!AV.applicationId) {
+                                AV.init(AV_CONFIG);
+                            }
+                            setIsInitialized(true);
+                        } catch (e) {
+                            console.error("LeanCloud Init Fail:", e);
+                        }
+                    } else {
+                        setTimeout(initSDK, 500);
+                    }
+                };
+                initSDK();
+            }, []);
+
+            // 登录状态管理
+            React.useEffect(() => {
+                if (!isInitialized) return;
+                const storedUser = localStorage.getItem('barber_user');
+                setTimeout(() => {
+                    if (storedUser) {
+                        const parsed = JSON.parse(storedUser);
+                        setUserData(parsed);
+                        setView(parsed.role === 'admin' ? 'admin' : 'customer');
+                    } else {
+                        setView('login');
+                    }
+                }, 500);
+            }, [isInitialized]);
+
+            const handleLogin = (name, phone, code) => {
+                let role = (code === ADMIN_CODE) ? 'admin' : 'customer';
+                const data = { name, phone, role };
+                setUserData(data);
+                localStorage.setItem('barber_user', JSON.stringify(data));
+                setView(role);
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('barber_user');
+                setUserData({ name: '', phone: '', role: 'customer' });
+                setView('login');
+            };
+
+            if (view === 'loading' || !isInitialized) {
+                return (
+                    <div className="h-screen flex flex-col justify-center items-center bg-white">
+                        <div className="spinner mb-4"></div>
+                        <p className="text-gray-400 animate-pulse text-sm font-medium">正在连接 LeanCloud 云端数据...</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50 font-sans">
+                    {view === 'login' && <LoginPage onLogin={handleLogin} />}
+                    {view === 'customer' && <CustomerView userData={userData} onLogout={handleLogout} />}
+                    {view === 'admin' && <AdminView onLogout={handleLogout} />}
+                </div>
+            );
+        }
+
+        // --- 登录模块 ---
+        function LoginPage({ onLogin }) {
+            const [name, setName] = React.useState('');
+            const [phone, setPhone] = React.useState('');
+            const [code, setCode] = React.useState('');
+            const [isAdminLogin, setIsAdminLogin] = React.useState(false);
+
+            return (
+                <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-white">
+                    <div className="w-full max-w-md">
+                        <div className="text-center mb-10">
+                            <div className="mx-auto w-24 h-24 bg-gray-900 rounded-3xl flex items-center justify-center mb-6 text-white text-4xl shadow-xl">
+                                <i className="fas fa-scissors"></i>
+                            </div>
+                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">欧巴工作室在线预约</h1>
+                            <p className="text-gray-400 mt-2">感谢每一个老用户的信赖！</p>
+                        </div>
+
+                        <form onSubmit={(e) => { e.preventDefault(); onLogin(name, phone, code); }} className="space-y-5">
+                            {!isAdminLogin && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">您的称呼</label>
+                                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition outline-none" placeholder="例如：王先生" required={!isAdminLogin} />
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">联系手机</label>
+                                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition outline-none" placeholder="用于识别预约身份" required />
+                            </div>
+                            {isAdminLogin && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">管理密码</label>
+                                    <input type="password" value={code} onChange={e => setCode(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition outline-none" placeholder="请输入店主通行码" required />
+                                </div>
+                            )}
+                            <button type="submit" className="w-full bg-gray-900 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-black transform active:scale-95 transition">
+                                {isAdminLogin ? '进入管理中心' : '即刻开启预约'}
+                            </button>
+                        </form>
+
+                        <div className="mt-10 text-center">
+                            <button onClick={() => setIsAdminLogin(!isAdminLogin)} className="text-sm font-medium text-gray-400 hover:text-gray-900">
+                                {isAdminLogin ? '← 返回顾客模式' : '店长入口'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- 顾客模块 ---
+        function CustomerView({ userData, onLogout }) {
+            const [selectedDate, setSelectedDate] = React.useState(formatDate(new Date()));
+            const [appointments, setAppointments] = React.useState([]);
+            const [myHistory, setMyHistory] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [bookingSlot, setBookingSlot] = React.useState(null);
+            const [refreshKey, setRefreshKey] = React.useState(0);
+
+            const dates = [0, 1, 2, 3, 4, 5, 6].map(offset => getRelativeDate(offset));
+
+            // 加载逻辑
+            React.useEffect(() => {
+                setLoading(true);
+                const query = new AV.Query('Appointment');
+                query.equalTo('date', selectedDate);
+                query.find().then(res => {
+                    setAppointments(res.map(r => ({ id: r.id, ...r.attributes })));
+                    setLoading(false);
+                });
+                
+                const myQuery = new AV.Query('Appointment');
+                myQuery.equalTo('userPhone', userData.phone);
+                myQuery.descending('createdAt');
+                myQuery.find().then(res => setMyHistory(res.map(r => ({ id: r.id, ...r.attributes }))));
+            }, [selectedDate, refreshKey, userData.phone]);
+
+            const handleConfirmBooking = async () => {
+                try {
+                    const AppObj = AV.Object.extend('Appointment');
+                    const item = new AppObj();
+                    item.set({
+                        date: selectedDate,
+                        time: bookingSlot,
+                        userName: userData.name,
+                        userPhone: userData.phone,
+                        status: 'booked',
+                        type: '剪发',
+                        amount: 0,
+                        notes: '',
+                        createdAtTimestamp: Date.now()
+                    });
+                    await item.save();
+                    setBookingSlot(null);
+                    setRefreshKey(k => k + 1);
+
+                    if(confirm("预约成功！是否一键通知店主（微信）？")) {
+                        sendWeChatMsg(`你好老板，我是${userData.name}，已在系统成功预约了 ${selectedDate} ${bookingSlot} 理发，麻烦留出时间哈。`);
+                    }
+                } catch (e) {
+                    alert("云端同步失败: " + e.message);
+                }
+            };
+
+            return (
+                <div className="max-w-xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col">
+                    <header className="bg-gray-900 text-white p-6 sticky top-0 z-20">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-xl font-black">你好, {userData.name}</h2>
+                                <p className="text-xs text-gray-500 mt-1">今天想换个什么发型？</p>
+                            </div>
+                            <button onClick={onLogout} className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-xs transition">退出</button>
+                        </div>
+                    </header>
+
+                    {/* 日期滑块 */}
+                    <div className="p-4 bg-gray-50 overflow-x-auto scrollbar-hide border-b">
+                        <div className="flex space-x-3">
+                            {dates.map(date => {
+                                const d = new Date(date);
+                                const isSelected = date === selectedDate;
+                                return (
+                                    <button key={date} onClick={() => setSelectedDate(date)} className={`flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center transition-all ${isSelected ? 'bg-gray-900 text-white shadow-xl scale-105' : 'bg-white border border-gray-100 text-gray-400'}`}>
+                                        <span className="text-[10px] mb-1 font-bold">{['日','一','二','三','四','五','六'][d.getDay()]}</span>
+                                        <span className="text-lg font-black">{d.getDate()}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <main className="p-6 flex-1">
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">可选时间段 ({selectedDate})</h3>
+                        {loading ? <div className="spinner mx-auto"></div> : (
+                            <div className="grid grid-cols-3 gap-4">
+                                {TIME_SLOTS.map(time => {
+                                    const isTaken = appointments.some(a => a.time === time && a.status !== 'cancelled');
+                                    const isPast = (selectedDate === formatDate(new Date())) && (parseInt(time) <= new Date().getHours());
+                                    return (
+                                        <button 
+                                            key={time} 
+                                            disabled={isTaken || isPast}
+                                            onClick={() => setBookingSlot(time)}
+                                            className={`py-5 rounded-2xl font-bold text-sm transition-all border-2 ${isTaken ? 'bg-gray-100 border-gray-100 text-gray-300' : isPast ? 'bg-gray-50 border-gray-50 text-gray-200' : 'bg-white border-green-500 text-green-600 hover:bg-green-50 active:scale-90 shadow-sm'}`}
+                                        >
+                                            {time}
+                                            {isTaken && <div className="text-[10px] mt-1 font-normal">已满</div>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* 预约历史 */}
+                        <div className="mt-12">
+                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">我的预约历史</h3>
+                            <div className="space-y-4">
+                                {myHistory.map(h => (
+                                    <div key={h.id} className="p-4 rounded-2xl border border-gray-100 bg-white flex justify-between items-center shadow-sm">
+                                        <div>
+                                            <div className="font-black text-gray-900">{h.date} {h.time}</div>
+                                            <div className="text-xs text-gray-500 mt-1">{h.type} | {h.status === 'booked' ? '等待服务' : h.status === 'completed' ? '服务完成' : '已取消'}</div>
+                                        </div>
+                                        {h.status === 'booked' && (
+                                            <button onClick={() => sendWeChatMsg(`老板，我是${userData.name}，我预约的${h.date} ${h.time}，确定会准时过去哦。`)} className="bg-green-500 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg shadow-green-200">
+                                                <i className="fab fa-weixin"></i>
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                {myHistory.length === 0 && <div className="text-center py-10 text-gray-300 text-sm italic">尚无预约记录</div>}
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* 确认框 */}
+                    {bookingSlot && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+                            <div className="bg-white w-full max-w-sm rounded-[32px] p-8 animate-bounce-in shadow-2xl">
+                                <h4 className="text-2xl font-black mb-2">预约确认</h4>
+                                <p className="text-gray-500 mb-8">我们将为您保留 <span className="text-gray-900 font-bold underline decoration-green-500 decoration-2 underline-offset-4">{selectedDate} {bookingSlot}</span>。请确认您的选择：</p>
+                                <div className="flex space-x-4">
+                                    <button onClick={() => setBookingSlot(null)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-500">点错了</button>
+                                    <button onClick={handleConfirmBooking} className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-bold shadow-xl shadow-gray-300">确认预约</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // --- 店主管理模块 (完整还原功能) ---
+        function AdminView({ onLogout }) {
+            const [tab, setTab] = React.useState('schedule');
+            const [selectedDate, setSelectedDate] = React.useState(formatDate(new Date()));
+            const [allData, setAllData] = React.useState([]);
+            const [refreshKey, setRefreshKey] = React.useState(0);
+            const [editingApp, setEditingApp] = React.useState(null);
+            const [editForm, setEditForm] = React.useState({ amount: '', type: '剪发', notes: '' });
+
+            React.useEffect(() => {
+                const query = new AV.Query('Appointment');
+                query.limit(1000);
+                query.descending('createdAtTimestamp');
+                query.find().then(res => setAllData(res.map(r => ({ id: r.id, ...r.attributes }))));
+            }, [refreshKey]);
+
+            const triggerRefresh = () => setRefreshKey(k => k + 1);
+
+            const updateStatus = async (id, status, extra = {}) => {
+                const obj = AV.Object.createWithoutData('Appointment', id);
+                obj.set('status', status);
+                Object.keys(extra).forEach(k => obj.set(k, extra[k]));
+                await obj.save();
+                setEditingApp(null);
+                triggerRefresh();
+            };
+
+            // --- CRM 数据处理 ---
+            const customerStats = React.useMemo(() => {
+                const stats = {};
+                allData.forEach(a => {
+                    if (a.userPhone === 'ADMIN') return;
+                    if (!stats[a.userPhone]) stats[a.userPhone] = { name: a.userName, phone: a.userPhone, visits: 0, total: 0, last: '' };
+                    if (a.status === 'completed') {
+                        stats[a.userPhone].visits++;
+                        stats[a.userPhone].total += (a.amount || 0);
+                        if (a.date > stats[a.userPhone].last) stats[a.userPhone].last = a.date;
+                    }
+                });
+                return Object.values(stats).sort((a, b) => b.total - a.total);
+            }, [allData]);
+
+            return (
+                <div className="min-h-screen bg-gray-100 pb-24">
+                    <header className="bg-gray-900 text-white p-6 sticky top-0 z-30 shadow-xl flex justify-between items-center">
+                        <div>
+                            <h2 className="text-xl font-black">店主控制台</h2>
+                            <p className="text-xs text-gray-500">LeanCloud 实时同步中</p>
+                        </div>
+                        <button onClick={onLogout} className="text-xs bg-red-500/20 text-red-400 px-4 py-2 rounded-full font-bold">退出</button>
+                    </header>
+
+                    {/* 日程页 */}
+                    {tab === 'schedule' && (
+                        <div className="p-6 space-y-6">
+                            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full p-4 rounded-2xl border-none shadow-sm font-bold text-lg" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {TIME_SLOTS.map(time => {
+                                    const app = allData.find(a => a.date === selectedDate && a.time === time && a.status !== 'cancelled');
+                                    return (
+                                        <div key={time} className={`p-5 rounded-3xl border-2 flex justify-between items-center transition-all ${app ? 'bg-white border-blue-500 shadow-md scale-[1.02]' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
+                                            <div className="font-black text-xl text-gray-800">{time}</div>
+                                            {app ? (
+                                                <div className="text-right">
+                                                    <div className="font-black text-gray-900">{app.userName}</div>
+                                                    <div className="text-xs text-gray-400 mb-2">{app.userPhone}</div>
+                                                    <div className="flex space-x-2 justify-end">
+                                                        <button onClick={() => sendWeChatMsg(`你好${app.userName}，我是理发师，关于你今天${time}的预约想沟通下。`)} className="text-green-500 bg-green-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fab fa-weixin"></i></button>
+                                                        <button onClick={() => updateStatus(app.id, 'cancelled')} className="text-red-500 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button onClick={async () => {
+                                                    const Obj = AV.Object.extend('Appointment');
+                                                    const o = new Obj();
+                                                    o.set({ date: selectedDate, time, userName: '店主锁定', userPhone: 'ADMIN', status: 'booked', createdAtTimestamp: Date.now() });
+                                                    await o.save(); triggerRefresh();
+                                                }} className="text-xs font-bold text-gray-400 border border-gray-300 px-4 py-2 rounded-xl hover:bg-gray-200 transition">锁定</button>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 订单/待办页 */}
+                    {tab === 'orders' && (
+                        <div className="p-6 space-y-4">
+                            <h3 className="font-black text-lg text-gray-800 mb-4">待结账单 ({allData.filter(a => a.status === 'booked' && a.userPhone !== 'ADMIN').length})</h3>
+                            {allData.filter(a => a.status === 'booked' && a.userPhone !== 'ADMIN').map(app => (
+                                <div key={app.id} className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div>
+                                            <div className="text-2xl font-black">{app.userName}</div>
+                                            <div className="text-sm text-gray-400 font-medium">{app.date} @ {app.time}</div>
+                                        </div>
+                                        <button onClick={() => sendWeChatMsg(`你好${app.userName}，看到你预约了今天的理发，大概什么时候到店？`)} className="bg-green-100 text-green-600 px-4 py-2 rounded-full text-xs font-bold"><i className="fab fa-weixin mr-1"></i>联系</button>
+                                    </div>
+                                    {editingApp === app.id ? (
+                                        <div className="bg-gray-50 p-6 rounded-2xl space-y-4 animate-bounce-in">
+                                            <div className="flex gap-4">
+                                                <select className="flex-1 p-4 border-none rounded-xl font-bold shadow-sm" value={editForm.type} onChange={e => setEditForm({...editForm, type: e.target.value})}>
+                                                    <option>剪发</option><option>烫染组合</option><option>造型</option><option>深层护理</option>
+                                                </select>
+                                                <input type="number" className="w-32 p-4 border-none rounded-xl font-bold shadow-sm text-center" placeholder="金额" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} />
+                                            </div>
+                                            <textarea className="w-full p-4 border-none rounded-xl shadow-sm text-sm" placeholder="备注客户喜好、配方记录..." value={editForm.notes} onChange={e => setEditForm({...editForm, notes: e.target.value})} />
+                                            <div className="flex gap-3">
+                                                <button onClick={() => setEditingApp(null)} className="flex-1 py-4 bg-gray-200 rounded-xl font-bold">取消</button>
+                                                <button onClick={() => updateStatus(app.id, 'completed', { amount: parseFloat(editForm.amount), type: editForm.type, notes: editForm.notes })} className="flex-2 py-4 bg-gray-900 text-white rounded-xl font-bold shadow-lg">确认结账</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => { setEditingApp(app.id); setEditForm({ amount: '', type: '剪发', notes: '' }); }} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-sm tracking-widest uppercase">处理并完成订单</button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 客户CRM页 */}
+                    {tab === 'customers' && (
+                        <div className="p-6">
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-indigo-500">
+                                    <div className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">活跃客户</div>
+                                    <div className="text-3xl font-black">{customerStats.length}</div>
+                                </div>
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-green-500">
+                                    <div className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">总营收 (估)</div>
+                                    <div className="text-3xl font-black">¥{customerStats.reduce((s, c) => s + c.total, 0)}</div>
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 border-b">
+                                        <tr className="text-left text-[10px] text-gray-400 uppercase tracking-widest">
+                                            <th className="p-6">客户信息</th>
+                                            <th className="p-6">数据分析</th>
+                                            <th className="p-6">营销</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {customerStats.map((c, i) => (
+                                            <tr key={c.phone} className="hover:bg-gray-50/50 transition">
+                                                <td className="p-6">
+                                                    <div className="flex items-center">
+                                                        {i < 3 && <span className="text-yellow-500 mr-2"><i className="fas fa-crown"></i></span>}
+                                                        <span className="font-black text-gray-900">{c.name}</span>
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 mt-1">{c.phone}</div>
+                                                </td>
+                                                <td className="p-6">
+                                                    <div className="font-black text-indigo-600">¥{c.total}</div>
+                                                    <div className="text-[10px] text-gray-400">频率: {c.visits}次</div>
+                                                </td>
+                                                <td className="p-6">
+                                                    <button onClick={() => sendWeChatMsg(`你好${c.name}，我是理发师。看你很久没过来了，最近要不要来修整一下头发？`)} className="bg-green-100 text-green-600 w-10 h-10 rounded-full flex items-center justify-center"><i className="fab fa-weixin"></i></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 底部导航栏 */}
+                    <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 flex justify-around p-4 z-40 shadow-2xl">
+                        {[
+                            { id: 'schedule', icon: 'fa-calendar-day', label: '预约日程' },
+                            { id: 'orders', icon: 'fa-file-invoice-dollar', label: '订单结算' },
+                            { id: 'customers', icon: 'fa-user-astronaut', label: '客户管理' }
+                        ].map(t => (
+                            <button key={t.id} onClick={() => setTab(t.id)} className={`flex flex-col items-center gap-1 transition-all ${tab === t.id ? 'text-gray-900 scale-110' : 'text-gray-300'}`}>
+                                <i className={`fas ${t.icon} text-xl`}></i>
+                                <span className={`text-[10px] font-bold ${tab === t.id ? 'opacity-100' : 'opacity-0'}`}>{t.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
