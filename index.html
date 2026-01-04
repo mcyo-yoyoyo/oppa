@@ -173,8 +173,8 @@
                             <div className="mx-auto w-24 h-24 bg-gray-900 rounded-3xl flex items-center justify-center mb-6 text-white text-4xl shadow-xl">
                                 <i className="fas fa-scissors"></i>
                             </div>
-                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">欧巴工作室预约管理</h1>
-                            <p className="text-gray-400 mt-2">理发、造型、烫染，想蜕变来找我吧！</p>
+                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">欧巴工作室 - 闲“侠”时光</h1>
+                            <p className="text-gray-400 mt-2">理发、造型、烫染，想蜕变就赶紧预约吧！</p>
                         </div>
 
                         <form onSubmit={(e) => { e.preventDefault(); onLogin(name, phone, code); }} className="space-y-5">
@@ -195,13 +195,13 @@
                                 </div>
                             )}
                             <button type="submit" className="w-full bg-gray-900 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-black transform active:scale-95 transition">
-                                {isAdminLogin ? '进入管理中心' : '即刻开启预约'}
+                                {isAdminLogin ? '进入管理后台' : '即刻开启预约'}
                             </button>
                         </form>
 
                         <div className="mt-10 text-center">
                             <button onClick={() => setIsAdminLogin(!isAdminLogin)} className="text-sm font-medium text-gray-400 hover:text-gray-900">
-                                {isAdminLogin ? '← 返回顾客模式' : '店主入口'}
+                                {isAdminLogin ? '← 返回顾客模式' : '我是老板'}
                             </button>
                         </div>
                     </div>
@@ -267,8 +267,8 @@
                     <header className="bg-gray-900 text-white p-6 sticky top-0 z-20">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h2 className="text-xl font-black">你好, {userData.name}</h2>
-                                <p className="text-xs text-gray-500 mt-1">今天想换个什么发型？</p>
+                                <h2 className="text-xl font-black">老朋友你好, {userData.name}</h2>
+                                <p className="text-xs text-gray-500 mt-1">今天想换个什么发型呢？</p>
                             </div>
                             <button onClick={onLogout} className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-xs transition">退出</button>
                         </div>
@@ -309,7 +309,7 @@
                         )}
 
                         <div className="mt-12">
-                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">我的预约历史</h3>
+                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">我的预约记录</h3>
                             <div className="space-y-4">
                                 {myHistory.map(h => (
                                     <div key={h.id} className="p-4 rounded-2xl border border-gray-100 bg-white flex justify-between items-center shadow-sm">
@@ -403,8 +403,8 @@
                 <div className="min-h-screen bg-gray-100 pb-24">
                     <header className="bg-gray-900 text-white p-6 sticky top-0 z-30 shadow-xl flex justify-between items-center">
                         <div>
-                            <h2 className="text-xl font-black">店主控制台</h2>
-                            <p className="text-xs text-gray-500">LeanCloud 实时同步中</p>
+                            <h2 className="text-xl font-black">老板管理后台</h2>
+                            <p className="text-xs text-gray-500">Copyright by Mcyo</p>
                         </div>
                         <button onClick={onLogout} className="text-xs bg-red-500/20 text-red-400 px-4 py-2 rounded-full font-bold">退出</button>
                     </header>
