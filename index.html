@@ -919,8 +919,8 @@ function navigateToStore() {
         title: storeInfo.title
     });
     
-    // 优先尝试打开百度地图
-    const opened = window.open(baiduMapUrl, '_blank');
+    // 优先尝试打开高德地图
+    const opened = window.open(gaodeMapUrl, '_blank');
     
     // 如果弹窗被阻止，提供备选方案
     if (!opened) {
