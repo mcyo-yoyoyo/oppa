@@ -173,7 +173,7 @@
                             <div className="mx-auto w-24 h-24 bg-gray-900 rounded-3xl flex items-center justify-center mb-6 text-white text-4xl shadow-xl">
                                 <i className="fas fa-scissors"></i>
                             </div>
-                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">欧巴工作室 - 闲“侠”时光</h1>
+                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">欧巴工作室 - 闲"侠"时光</h1>
                             <p className="text-gray-400 mt-2">理发、造型、烫染，想换个心情就来找我吧！</p>
                         </div>
 
@@ -368,6 +368,18 @@
                         </div>
                     </main>
 
+                        {/* 新增：门店地址和导航功能 */}
+                        <div className="mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                            <h3 className="font-bold text-blue-800 mb-2">📍 门店地址</h3>
+                            <p className="text-sm text-blue-600 mb-3">深圳市龙华区民治街道民乐社区民乐新村51栋欧巴工作室</p>
+                            <button 
+                                onClick={() => navigateToStore()} 
+                                className="w-full bg-blue-500 text-white p-3 rounded-xl font-bold shadow hover:bg-blue-600 transition"
+                            >
+                                🗺️ 一键导航到门店
+                            </button>
+                        </div>
+
                     {bookingSlot && (
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
                             <div className="bg-white w-full max-w-sm rounded-[32px] p-8 animate-bounce-in shadow-2xl">
@@ -383,6 +395,7 @@
                 </div>
             );
         }
+
 
         function AdminView({ onLogout }) {
             const [tab, setTab] = React.useState('schedule');
@@ -582,6 +595,44 @@
                 });
             }, [selectedDate, timeSlots]);
 
+            // 新增：导出预约记录功能
+            const exportAppointments = () => {
+                if (allData.length === 0) {
+                    alert('暂无预约记录可导出！');
+                    return;
+                }
+                
+                let csvContent = 'ID,姓名,手机号,服务项目,预约日期,预约时间,备注,状态,金额,预约时间\n';
+                
+                allData.forEach(app => {
+                    const row = [
+                        app.id,
+                        `"${app.userName || ''}"`,
+                        app.userPhone,
+                        `"${app.type || ''}"`,
+                        app.date,
+                        app.time,
+                        `"${app.notes || ''}"`,
+                        app.status,
+                        app.amount || 0,
+                        app.createdAtTimestamp ? new Date(app.createdAtTimestamp).toLocaleString() : ''
+                    ].join(',');
+                    csvContent += row + '\n';
+                });
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `预约记录_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                alert('预约记录导出成功！');
+            };
+
             return (
                 <div className="min-h-screen bg-gray-100 pb-24">
                     <header className="bg-gray-900 text-white p-6 sticky top-0 z-30 shadow-xl flex justify-between items-center">
@@ -617,6 +668,14 @@
                                                         </div>
                                                     ) : (
                                                         <div className="flex space-x-2 justify-end mt-2">
+                                                            {/* 新增：一键电话功能 */}
+                                                            <button 
+                                                                onClick={() => callCustomer(app.userPhone)} 
+                                                                className="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center"
+                                                                title="一键电话"
+                                                            >
+                                                                <i className="fas fa-phone"></i>
+                                                            </button>
                                                             <button onClick={() => sendWeChatMsg(`你好${app.userName}，我是理发师，关于你今天${time}的预约想沟通下。`)} className="text-green-500 bg-green-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fab fa-weixin"></i></button>
                                                             <button onClick={() => updateStatus(app.id, 'cancelled')} className="text-red-500 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
                                                         </div>
@@ -647,7 +706,17 @@
                                             <div className="text-2xl font-black">{app.userName}</div>
                                             <div className="text-sm text-gray-400 font-medium">{app.date} @ {app.time}</div>
                                         </div>
-                                        <button onClick={() => sendWeChatMsg(`你好${app.userName}，看到你预约了今天的理发，什么时候到店？`)} className="bg-green-100 text-green-600 px-4 py-2 rounded-full text-xs font-bold">联系</button>
+                                        {/* 新增：一键电话功能 */}
+                                        <div className="flex space-x-2">
+                                            <button 
+                                                onClick={() => callCustomer(app.userPhone)} 
+                                                className="bg-blue-100 text-blue-600 px-4 py-2 rounded-full text-xs font-bold"
+                                                title="一键电话"
+                                            >
+                                                <i className="fas fa-phone mr-1"></i>电话
+                                            </button>
+                                            <button onClick={() => sendWeChatMsg(`你好${app.userName}，看到你预约了今天的理发，什么时候到店？`)} className="bg-green-100 text-green-600 px-4 py-2 rounded-full text-xs font-bold">联系</button>
+                                        </div>
                                     </div>
                                     {editingApp === app.id ? (
                                         <div className="bg-gray-50 p-6 rounded-2xl space-y-4 animate-bounce-in">
@@ -684,6 +753,18 @@
                                 </div>
                             </div>
                             <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100">
+                                <div className="p-4 bg-gray-50 border-b">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="font-bold text-gray-800">客户列表</h3>
+                                        {/* 新增：一键导出功能 */}
+                                        <button 
+                                            onClick={exportAppointments} 
+                                            className="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center"
+                                        >
+                                            <i className="fas fa-file-export mr-2"></i>导出所有记录
+                                        </button>
+                                    </div>
+                                </div>
                                 <table className="w-full">
                                     <thead className="bg-gray-50 border-b">
                                         <tr className="text-left text-[10px] text-gray-400 uppercase tracking-widest">
@@ -697,7 +778,17 @@
                                             <tr key={c.phone} className="hover:bg-gray-50/50 transition">
                                                 <td className="p-6">
                                                     <span className="font-black text-gray-900">{c.name}</span>
-                                                    <div className="text-xs text-gray-400 mt-1">{c.phone}</div>
+                                                    <div className="text-xs text-gray-400 mt-1">
+                                                        {c.phone}
+                                                        {/* 新增：一键电话功能 */}
+                                                        <button 
+                                                            onClick={() => callCustomer(c.phone)} 
+                                                            className="ml-2 text-blue-500 hover:text-blue-700"
+                                                            title="一键电话"
+                                                        >
+                                                            <i className="fas fa-phone"></i>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                                 <td className="p-6">
                                                     <div className="font-black text-indigo-600">¥{c.total}</div>
@@ -794,6 +885,47 @@
                     </nav>
                 </div>
             );
+        }
+
+        // 新增：导航到门店功能
+        function navigateToStore() {
+            // 尝试使用百度地图导航
+            const baiduMapUrl = `https://api.map.baidu.com/marker?location=22.5431,114.0579&title=欧巴工作室&content=深圳市龙华区民治街道民乐社区民乐新村51栋欧巴工作室&output=html&src=webapp.baidu.openAPIdemo`;
+            
+            // 尝试使用高德地图导航
+            const gaodeMapUrl = `https://uri.amap.com/navigation?from=&to=22.5431,114.0579,欧巴工作室&mode=car&src=mypage&coordinate=gaode&callnative=0`;
+            
+            // 尝试使用苹果地图（iOS设备）
+            const appleMapUrl = `http://maps.apple.com/?daddr=22.5431,114.0579`;
+            
+            // 尝试使用谷歌地图
+            const googleMapUrl = `https://www.google.com/maps/dir/?api=1&destination=22.5431,114.0579`;
+            
+            // 在新窗口打开地图应用
+            window.open(baiduMapUrl, '_blank');
+            
+            // 提供备选方案
+            if (!window.open(baiduMapUrl, '_blank')) {
+                alert('请允许弹出窗口以打开地图应用。\n您也可以手动在地图应用中搜索："深圳市龙华区民治街道民乐社区民乐新村51栋欧巴工作室"');
+            }
+        }
+
+        // 新增：一键电话功能
+        function callCustomer(phone) {
+            if (!phone) {
+                alert('电话号码为空！');
+                return;
+            }
+            
+            // 在移动端，直接拨打电话
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                window.location.href = `tel:${phone}`;
+            } else {
+                // 在桌面端，显示提示信息
+                if (confirm(`即将拨打 ${phone}，是否继续？\n\n注意：桌面浏览器可能无法直接拨打电话，建议使用手机浏览器访问。`)) {
+                    window.location.href = `tel:${phone}`;
+                }
+            }
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
