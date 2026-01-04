@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的专属理发师 - 在线预约系统</title>
+    <title>闲“侠”时光 - 你的专属美发顾问</title>
     
     <!-- 显式定义 Vue Feature Flags 消除警告 (针对页面可能引入的 Vue 依赖) -->
     <script>
@@ -53,7 +53,7 @@
             serverURL: "https://ip3gqzay.lc-cn-n1-shared.com"
         };
 
-        const ADMIN_CODE = "8888"; 
+        const ADMIN_CODE = "yeyixia888"; 
         const TIME_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
         
         const formatDate = (date) => {
@@ -173,8 +173,8 @@
                             <div className="mx-auto w-24 h-24 bg-gray-900 rounded-3xl flex items-center justify-center mb-6 text-white text-4xl shadow-xl">
                                 <i className="fas fa-scissors"></i>
                             </div>
-                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">专属理发预约管理</h1>
-                            <p className="text-gray-400 mt-2">简单、高效、智能的预约系统</p>
+                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">欧巴工作室预约管理</h1>
+                            <p className="text-gray-400 mt-2">理发、造型、烫染，想蜕变来找我吧！</p>
                         </div>
 
                         <form onSubmit={(e) => { e.preventDefault(); onLogin(name, phone, code); }} className="space-y-5">
@@ -372,6 +372,19 @@
                 triggerRefresh();
             };
 
+            // 新增：解锁店主锁定的日程功能
+            const unlockSlot = async (id) => {
+                if (confirm("确定要解锁这个时间段吗？解锁后顾客可以重新预约。")) {
+                    try {
+                        const obj = AV.Object.createWithoutData('Appointment', id);
+                        await obj.destroy();
+                        triggerRefresh();
+                    } catch (e) {
+                        alert("解锁失败: " + e.message);
+                    }
+                }
+            };
+
             const customerStats = React.useMemo(() => {
                 const stats = {};
                 allData.forEach(a => {
@@ -408,10 +421,19 @@
                                             {app ? (
                                                 <div className="text-right">
                                                     <div className="font-black text-gray-900">{app.userName}</div>
-                                                    <div className="flex space-x-2 justify-end mt-2">
-                                                        <button onClick={() => sendWeChatMsg(`你好${app.userName}，我是理发师，关于你今天${time}的预约想沟通下。`)} className="text-green-500 bg-green-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fab fa-weixin"></i></button>
-                                                        <button onClick={() => updateStatus(app.id, 'cancelled')} className="text-red-500 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
-                                                    </div>
+                                                    {/* 检查是否为店主锁定的日程，如果是则显示解锁按钮 */}
+                                                    {app.userPhone === 'ADMIN' ? (
+                                                        <div className="flex space-x-2 justify-end mt-2">
+                                                            <button onClick={() => unlockSlot(app.id)} className="text-orange-500 bg-orange-50 w-8 h-8 rounded-full flex items-center justify-center">
+                                                                <i className="fas fa-unlock"></i>
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex space-x-2 justify-end mt-2">
+                                                            <button onClick={() => sendWeChatMsg(`你好${app.userName}，我是理发师，关于你今天${time}的预约想沟通下。`)} className="text-green-500 bg-green-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fab fa-weixin"></i></button>
+                                                            <button onClick={() => updateStatus(app.id, 'cancelled')} className="text-red-500 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <button onClick={async () => {
