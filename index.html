@@ -904,9 +904,9 @@ function navigateToStore() {
     }
     
     // 使用当前存储的最新地址信息构建URL
-    const baiduMapUrl = `https://api.map.baidu.com/marker?location=${storeInfo.lat},${storeInfo.lng}&title=${encodeURIComponent(storeInfo.title)}&content=${encodeURIComponent(storeInfo.address)}&output=html&src=webapp.baidu.openAPIdemo`;
-    
     const gaodeMapUrl = `https://uri.amap.com/navigation?from=&to=${storeInfo.lat},${storeInfo.lng},${encodeURIComponent(storeInfo.title)}&mode=car&src=mypage&coordinate=gaode&callnative=0`;
+
+    const baiduMapUrl = `https://api.map.baidu.com/marker?location=${storeInfo.lat},${storeInfo.lng}&title=${encodeURIComponent(storeInfo.title)}&content=${encodeURIComponent(storeInfo.address)}&output=html&src=webapp.baidu.openAPIdemo`;
     
     const appleMapUrl = `http://maps.apple.com/?daddr=${storeInfo.lat},${storeInfo.lng}`;
     
