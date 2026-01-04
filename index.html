@@ -181,12 +181,12 @@
                             {!isAdminLogin && (
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">您的称呼</label>
-                                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition outline-none" placeholder="例如：王先生" required={!isAdminLogin} />
+                                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition outline-none" placeholder="例如：苏女士" required={!isAdminLogin} />
                                 </div>
                             )}
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">联系手机</label>
-                                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition outline-none" placeholder="用于识别预约身份" required />
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">您的手机</label>
+                                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition outline-none" placeholder="请输入11位手机号" required />
                             </div>
                             {isAdminLogin && (
                                 <div>
