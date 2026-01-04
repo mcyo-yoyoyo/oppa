@@ -887,28 +887,67 @@
             );
         }
 
-        // 新增：导航到门店功能
-        function navigateToStore() {
-            // 尝试使用百度地图导航
-            const baiduMapUrl = `https://api.map.baidu.com/marker?location=22.5431,114.0579&title=欧巴工作室&content=深圳市龙华区民治街道民乐社区民乐新村51栋欧巴工作室&output=html&src=webapp.baidu.openAPIdemo`;
-            
-            // 尝试使用高德地图导航
-            const gaodeMapUrl = `https://uri.amap.com/navigation?from=&to=22.5431,114.0579,欧巴工作室&mode=car&src=mypage&coordinate=gaode&callnative=0`;
-            
-            // 尝试使用苹果地图（iOS设备）
-            const appleMapUrl = `http://maps.apple.com/?daddr=22.5431,114.0579`;
-            
-            // 尝试使用谷歌地图
-            const googleMapUrl = `https://www.google.com/maps/dir/?api=1&destination=22.5431,114.0579`;
-            
-            // 在新窗口打开地图应用
-            window.open(baiduMapUrl, '_blank');
-            
-            // 提供备选方案
-            if (!window.open(baiduMapUrl, '_blank')) {
-                alert('请允许弹出窗口以打开地图应用。\n您也可以手动在地图应用中搜索："深圳市龙华区民治街道民乐社区民乐新村51栋欧巴工作室"');
-            }
+// 存储门店信息的全局变量（添加到文件顶部）
+let storeInfo = {
+    lat: "22.5431",  // 替换为您的实际坐标
+    lng: "114.0579", // 替换为您的实际坐标
+    title: "欧巴工作室",
+    address: "深圳市龙华区民治街道民乐社区民乐新村51栋欧巴工作室"
+};
+        
+       // 修复后的导航函数（替换您现有的navigateToStore函数）
+function navigateToStore() {
+    // 检查是否有更新后的地址信息
+    if (!storeInfo.lat || !storeInfo.lng) {
+        alert('门店坐标信息不完整，请先更新地址信息');
+        return;
+    }
+    
+    // 使用当前存储的最新地址信息构建URL
+    const baiduMapUrl = `https://api.map.baidu.com/marker?location=${storeInfo.lat},${storeInfo.lng}&title=${encodeURIComponent(storeInfo.title)}&content=${encodeURIComponent(storeInfo.address)}&output=html&src=webapp.baidu.openAPIdemo`;
+    
+    const gaodeMapUrl = `https://uri.amap.com/navigation?from=&to=${storeInfo.lat},${storeInfo.lng},${encodeURIComponent(storeInfo.title)}&mode=car&src=mypage&coordinate=gaode&callnative=0`;
+    
+    const appleMapUrl = `http://maps.apple.com/?daddr=${storeInfo.lat},${storeInfo.lng}`;
+    
+    const googleMapUrl = `https://www.google.com/maps/dir/?api=1&destination=${storeInfo.lat},${storeInfo.lng}`;
+    
+    console.log('导航到门店:', {
+        lat: storeInfo.lat,
+        lng: storeInfo.lng,
+        address: storeInfo.address,
+        title: storeInfo.title
+    });
+    
+    // 优先尝试打开百度地图
+    const opened = window.open(baiduMapUrl, '_blank');
+    
+    // 如果弹窗被阻止，提供备选方案
+    if (!opened) {
+        const userChoice = confirm(`无法直接打开地图应用，是否手动在地图中搜索?\n地址: ${storeInfo.address}\n坐标: ${storeInfo.lat}, ${storeInfo.lng}\n\n点击确定复制地址到剪贴板`);
+        if (userChoice) {
+            navigator.clipboard.writeText(storeInfo.address).then(() => {
+                alert('地址已复制到剪贴板，请在地图应用中粘贴搜索');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                alert(`请手动搜索地址: ${storeInfo.address}`);
+            });
         }
+    }
+}
+
+// 添加更新地址的函数
+function updateStoreAddress(newAddress, newLat, newLng) {
+    if (newAddress && newLat && newLng) {
+        storeInfo.address = newAddress;
+        storeInfo.lat = newLat;
+        storeInfo.lng = newLng;
+        storeInfo.title = newAddress.split(',')[0] || "门店"; // 从地址中提取标题
+        console.log('门店信息已更新:', storeInfo);
+    } else {
+        console.error('地址信息不完整，无法更新');
+    }
+}
 
         // 新增：一键电话功能
         function callCustomer(phone) {
