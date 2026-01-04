@@ -306,7 +306,7 @@
                     <header className="bg-gray-900 text-white p-6 sticky top-0 z-20">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h2 className="text-xl font-black">老朋友你好, {userData.name}</h2>
+                                <h2 className="text-xl font-black">老朋友 {userData.name} 好久不见！</h2>
                                 <p className="text-xs text-gray-500 mt-1">今天想换个什么发型呢？</p>
                             </div>
                             <button onClick={onLogout} className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-xs transition">退出</button>
@@ -329,7 +329,7 @@
                     </div>
 
                     <main className="p-6 flex-1">
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">可选时间段 ({selectedDate})</h3>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">请选择预计到店时间 ({selectedDate})</h3>
                         {loading ? <div className="spinner mx-auto"></div> : (
                             <div className="grid grid-cols-3 gap-4">
                                 {timeSlots.map(time => {
