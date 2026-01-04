@@ -216,21 +216,60 @@
             const [loading, setLoading] = React.useState(true);
             const [bookingSlot, setBookingSlot] = React.useState(null);
             const [refreshKey, setRefreshKey] = React.useState(0);
+            const [timeSlots, setTimeSlots] = React.useState([...DEFAULT_TIME_SLOTS]);
 
             const dates = [0, 1, 2, 3, 4, 5, 6].map(offset => getRelativeDate(offset));
+
+            // 获取特定日期的时间槽配置
+            const getTimeSlotsForDate = async (date) => {
+                try {
+                    // 首先检查是否有日期特定配置
+                    const dateSpecificQuery = new AV.Query('TimeSlotConfig');
+                    dateSpecificQuery.equalTo('type', 'dateSpecific');
+                    dateSpecificQuery.equalTo('date', date);
+                    const dateSpecificResults = await dateSpecificQuery.find();
+                    
+                    if (dateSpecificResults.length > 0) {
+                        return dateSpecificResults[0].get('timeSlots') || DEFAULT_TIME_SLOTS;
+                    }
+                    
+                    // 如果没有日期特定配置，则使用默认配置
+                    const defaultQuery = new AV.Query('TimeSlotConfig');
+                    defaultQuery.equalTo('type', 'default');
+                    const defaultResults = await defaultQuery.find();
+                    
+                    if (defaultResults.length > 0) {
+                        return defaultResults[0].get('timeSlots') || DEFAULT_TIME_SLOTS;
+                    }
+                    
+                    // 如果都没有，则返回默认时间槽
+                    return DEFAULT_TIME_SLOTS;
+                } catch (error) {
+                    console.error("获取时间槽配置失败:", error);
+                    return DEFAULT_TIME_SLOTS;
+                }
+            };
 
             React.useEffect(() => {
                 if (AV_CONFIG.appId === "YOUR_LEANCLOUD_APP_ID") {
                     setLoading(false);
                     return;
                 }
+                
                 setLoading(true);
-                const query = new AV.Query('Appointment');
-                query.equalTo('date', selectedDate);
-                query.find().then(res => {
-                    setAppointments(res.map(r => ({ id: r.id, ...r.attributes })));
-                    setLoading(false);
-                }).catch(() => setLoading(false));
+                
+                // 获取时间槽配置
+                getTimeSlotsForDate(selectedDate).then(slots => {
+                    setTimeSlots(slots);
+                    
+                    // 获取预约数据
+                    const query = new AV.Query('Appointment');
+                    query.equalTo('date', selectedDate);
+                    query.find().then(res => {
+                        setAppointments(res.map(r => ({ id: r.id, ...r.attributes })));
+                        setLoading(false);
+                    }).catch(() => setLoading(false));
+                });
                 
                 const myQuery = new AV.Query('Appointment');
                 myQuery.equalTo('userPhone', userData.phone);
@@ -293,9 +332,9 @@
                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">可选时间段 ({selectedDate})</h3>
                         {loading ? <div className="spinner mx-auto"></div> : (
                             <div className="grid grid-cols-3 gap-4">
-                                {TIME_SLOTS.map(time => {
+                                {timeSlots.map(time => {
                                     const isTaken = appointments.some(a => a.time === time && a.status !== 'cancelled');
-                                    const isPast = (selectedDate === formatDate(new Date())) && (parseInt(time) <= new Date().getHours());
+                                    const isPast = (selectedDate === formatDate(new Date())) && (parseInt(time.split(':')[0]) <= new Date().getHours());
                                     return (
                                         <button key={time} disabled={isTaken || isPast} onClick={() => setBookingSlot(time)}
                                             className={`py-5 rounded-2xl font-bold text-sm transition-all border-2 ${isTaken ? 'bg-gray-100 border-gray-100 text-gray-300' : isPast ? 'bg-gray-50 border-gray-50 text-gray-200' : 'bg-white border-green-500 text-green-600 hover:bg-green-50 active:scale-90 shadow-sm'}`}
@@ -454,15 +493,18 @@
                         const config = results[0];
                         config.set('timeSlots', slots);
                         await config.save();
+                        console.log("默认时间槽配置已保存:", slots);
                     } else {
                         const TimeSlotConfig = AV.Object.extend('TimeSlotConfig');
                         const config = new TimeSlotConfig();
                         config.set('type', 'default');
                         config.set('timeSlots', slots);
                         await config.save();
+                        console.log("默认时间槽配置已创建:", slots);
                     }
                 } catch (e) {
                     console.error("保存默认时间槽失败:", e);
+                    alert("保存配置失败: " + e.message);
                 }
             };
 
@@ -477,6 +519,7 @@
                         const config = results[0];
                         config.set('timeSlots', slots);
                         await config.save();
+                        console.log("日期特定时间槽配置已更新:", date, slots);
                     } else {
                         const TimeSlotConfig = AV.Object.extend('TimeSlotConfig');
                         const config = new TimeSlotConfig();
@@ -484,9 +527,11 @@
                         config.set('date', date);
                         config.set('timeSlots', slots);
                         await config.save();
+                        console.log("日期特定时间槽配置已创建:", date, slots);
                     }
                 } catch (e) {
                     console.error("保存日期特定时间槽失败:", e);
+                    alert("保存配置失败: " + e.message);
                 }
             };
 
@@ -500,18 +545,33 @@
             };
 
             // 获取特定日期的时间槽
-            const getTimeSlotsForDate = (date) => {
-                // 检查是否有日期特定配置
-                const dateSpecificQuery = new AV.Query('TimeSlotConfig');
-                dateSpecificQuery.equalTo('type', 'dateSpecific');
-                dateSpecificQuery.equalTo('date', date);
-                
-                return dateSpecificQuery.first().then(result => {
-                    if (result) {
-                        return result.get('timeSlots') || timeSlots;
+            const getTimeSlotsForDate = async (date) => {
+                try {
+                    // 检查是否有日期特定配置
+                    const dateSpecificQuery = new AV.Query('TimeSlotConfig');
+                    dateSpecificQuery.equalTo('type', 'dateSpecific');
+                    dateSpecificQuery.equalTo('date', date);
+                    const dateSpecificResults = await dateSpecificQuery.find();
+                    
+                    if (dateSpecificResults.length > 0) {
+                        return dateSpecificResults[0].get('timeSlots') || timeSlots;
                     }
+                    
+                    // 如果没有日期特定配置，则使用默认配置
+                    const defaultQuery = new AV.Query('TimeSlotConfig');
+                    defaultQuery.equalTo('type', 'default');
+                    const defaultResults = await defaultQuery.find();
+                    
+                    if (defaultResults.length > 0) {
+                        return defaultResults[0].get('timeSlots') || timeSlots;
+                    }
+                    
+                    // 如果都没有，则返回当前配置的时间槽
                     return timeSlots;
-                });
+                } catch (error) {
+                    console.error("获取日期特定时间槽失败:", error);
+                    return timeSlots;
+                }
             };
 
             const [currentDateSlots, setCurrentDateSlots] = React.useState([...timeSlots]);
