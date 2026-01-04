@@ -288,7 +288,7 @@
                     const item = new AppObj();
                     item.set({
                         date: selectedDate, time: bookingSlot, userName: userData.name, userPhone: userData.phone,
-                        status: 'booked', type: '剪发', amount: 0, notes: '', createdAtTimestamp: Date.now()
+                        status: 'booked', type: '美发', amount: 0, notes: '', createdAtTimestamp: Date.now()
                     });
                     await item.save();
                     setBookingSlot(null);
@@ -354,7 +354,7 @@
                                     <div key={h.id} className="p-4 rounded-2xl border border-gray-100 bg-white flex justify-between items-center shadow-sm">
                                         <div>
                                             <div className="font-black text-gray-900">{h.date} {h.time}</div>
-                                            <div className="text-xs text-gray-500 mt-1">{h.type} | {h.status === 'booked' ? '等待服务' : h.status === 'completed' ? '服务完成' : '已取消'}</div>
+                                            <div className="text-xs text-gray-500 mt-1">{h.type} | {h.status === 'booked' ? '待到店服务' : h.status === 'completed' ? '服务完成' : '已取消'}</div>
                                         </div>
                                         {h.status === 'booked' && (
                                             <button onClick={() => sendWeChatMsg(`老板，我是${userData.name}，我预约的${h.date} ${h.time}，确定会准时过去哦。`)} className="bg-green-500 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg shadow-green-200">
@@ -403,7 +403,7 @@
             const [allData, setAllData] = React.useState([]);
             const [refreshKey, setRefreshKey] = React.useState(0);
             const [editingApp, setEditingApp] = React.useState(null);
-            const [editForm, setEditForm] = React.useState({ amount: '', type: '剪发', notes: '' });
+            const [editForm, setEditForm] = React.useState({ amount: '', type: '美发', notes: '' });
             const [timeSlots, setTimeSlots] = React.useState([...DEFAULT_TIME_SLOTS]);
             const [showTimeSlotConfig, setShowTimeSlotConfig] = React.useState(false);
             const [newTimeSlot, setNewTimeSlot] = React.useState('');
@@ -722,7 +722,7 @@
                                         <div className="bg-gray-50 p-6 rounded-2xl space-y-4 animate-bounce-in">
                                             <div className="flex gap-4">
                                                 <select className="flex-1 p-4 border-none rounded-xl font-bold shadow-sm" value={editForm.type} onChange={e => setEditForm({...editForm, type: e.target.value})}>
-                                                    <option>剪发</option><option>烫染组合</option><option>造型</option><option>深层护理</option>
+                                                    <option>美发</option><option>烫染组合</option><option>造型</option><option>深层护理</option>
                                                 </select>
                                                 <input type="number" className="w-32 p-4 border-none rounded-xl font-bold shadow-sm text-center" placeholder="金额" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} />
                                             </div>
@@ -733,7 +733,7 @@
                                             </div>
                                         </div>
                                     ) : (
-                                        <button onClick={() => { setEditingApp(app.id); setEditForm({ amount: '', type: '剪发', notes: '' }); }} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-sm tracking-widest uppercase">处理并完成订单</button>
+                                        <button onClick={() => { setEditingApp(app.id); setEditForm({ amount: '', type: '美发', notes: '' }); }} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-sm tracking-widest uppercase">处理并完成订单</button>
                                     )}
                                 </div>
                             ))}
