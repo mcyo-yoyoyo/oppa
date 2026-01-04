@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>闲“侠”时光 - 您的专属美发顾问</title>
+    <title>欧巴工作室-您的专属美发顾问</title>
     
     <!-- 显式定义 Vue Feature Flags 消除警告 (针对页面可能引入的 Vue 依赖) -->
     <script>
@@ -54,7 +54,7 @@
         };
 
         const ADMIN_CODE = "yeyixia888"; 
-        const TIME_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
+        const DEFAULT_TIME_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
         
         const formatDate = (date) => {
             const d = new Date(date);
@@ -195,7 +195,7 @@
                                 </div>
                             )}
                             <button type="submit" className="w-full bg-gray-900 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-black transform active:scale-95 transition">
-                                {isAdminLogin ? '进入管理后台' : '即刻开启预约'}
+                                {isAdminLogin ? '进入管理后台' : '马上预约'}
                             </button>
                         </form>
 
@@ -352,13 +352,32 @@
             const [refreshKey, setRefreshKey] = React.useState(0);
             const [editingApp, setEditingApp] = React.useState(null);
             const [editForm, setEditForm] = React.useState({ amount: '', type: '剪发', notes: '' });
+            const [timeSlots, setTimeSlots] = React.useState([...DEFAULT_TIME_SLOTS]);
+            const [showTimeSlotConfig, setShowTimeSlotConfig] = React.useState(false);
+            const [newTimeSlot, setNewTimeSlot] = React.useState('');
+            const [applyToAll, setApplyToAll] = React.useState(false);
 
             React.useEffect(() => {
                 if (AV_CONFIG.appId === "YOUR_LEANCLOUD_APP_ID") return;
-                const query = new AV.Query('Appointment');
-                query.limit(1000);
-                query.descending('createdAtTimestamp');
-                query.find().then(res => setAllData(res.map(r => ({ id: r.id, ...r.attributes }))));
+                
+                // 加载默认时间槽配置
+                const query = new AV.Query('TimeSlotConfig');
+                query.equalTo('type', 'default');
+                query.find().then(res => {
+                    if (res.length > 0) {
+                        const slots = res[0].get('timeSlots') || DEFAULT_TIME_SLOTS;
+                        setTimeSlots(slots);
+                    } else {
+                        setTimeSlots([...DEFAULT_TIME_SLOTS]);
+                    }
+                }).catch(() => {
+                    setTimeSlots([...DEFAULT_TIME_SLOTS]);
+                });
+
+                const appointmentQuery = new AV.Query('Appointment');
+                appointmentQuery.limit(1000);
+                appointmentQuery.descending('createdAtTimestamp');
+                appointmentQuery.find().then(res => setAllData(res.map(r => ({ id: r.id, ...r.attributes }))));
             }, [refreshKey]);
 
             const triggerRefresh = () => setRefreshKey(k => k + 1);
@@ -399,6 +418,110 @@
                 return Object.values(stats).sort((a, b) => b.total - a.total);
             }, [allData]);
 
+            // 时间槽管理功能
+            const addTimeSlot = () => {
+                if (!newTimeSlot) return;
+                if (!timeSlots.includes(newTimeSlot)) {
+                    const newSlots = [...timeSlots, newTimeSlot].sort();
+                    setTimeSlots(newSlots);
+                    
+                    // 如果选择应用到所有日期，则保存为默认配置
+                    if (applyToAll) {
+                        saveDefaultTimeSlots(newSlots);
+                    }
+                    
+                    setNewTimeSlot('');
+                }
+            };
+
+            const removeTimeSlot = (slot) => {
+                const newSlots = timeSlots.filter(s => s !== slot);
+                setTimeSlots(newSlots);
+                
+                // 如果选择应用到所有日期，则保存为默认配置
+                if (applyToAll) {
+                    saveDefaultTimeSlots(newSlots);
+                }
+            };
+
+            const saveDefaultTimeSlots = async (slots) => {
+                try {
+                    const query = new AV.Query('TimeSlotConfig');
+                    query.equalTo('type', 'default');
+                    const results = await query.find();
+                    
+                    if (results.length > 0) {
+                        const config = results[0];
+                        config.set('timeSlots', slots);
+                        await config.save();
+                    } else {
+                        const TimeSlotConfig = AV.Object.extend('TimeSlotConfig');
+                        const config = new TimeSlotConfig();
+                        config.set('type', 'default');
+                        config.set('timeSlots', slots);
+                        await config.save();
+                    }
+                } catch (e) {
+                    console.error("保存默认时间槽失败:", e);
+                }
+            };
+
+            const saveTimeSlotForDate = async (date, slots) => {
+                try {
+                    const query = new AV.Query('TimeSlotConfig');
+                    query.equalTo('type', 'dateSpecific');
+                    query.equalTo('date', date);
+                    const results = await query.find();
+                    
+                    if (results.length > 0) {
+                        const config = results[0];
+                        config.set('timeSlots', slots);
+                        await config.save();
+                    } else {
+                        const TimeSlotConfig = AV.Object.extend('TimeSlotConfig');
+                        const config = new TimeSlotConfig();
+                        config.set('type', 'dateSpecific');
+                        config.set('date', date);
+                        config.set('timeSlots', slots);
+                        await config.save();
+                    }
+                } catch (e) {
+                    console.error("保存日期特定时间槽失败:", e);
+                }
+            };
+
+            const handleSaveTimeSlotConfig = async () => {
+                if (applyToAll) {
+                    await saveDefaultTimeSlots(timeSlots);
+                } else {
+                    await saveTimeSlotForDate(selectedDate, timeSlots);
+                }
+                setShowTimeSlotConfig(false);
+            };
+
+            // 获取特定日期的时间槽
+            const getTimeSlotsForDate = (date) => {
+                // 检查是否有日期特定配置
+                const dateSpecificQuery = new AV.Query('TimeSlotConfig');
+                dateSpecificQuery.equalTo('type', 'dateSpecific');
+                dateSpecificQuery.equalTo('date', date);
+                
+                return dateSpecificQuery.first().then(result => {
+                    if (result) {
+                        return result.get('timeSlots') || timeSlots;
+                    }
+                    return timeSlots;
+                });
+            };
+
+            const [currentDateSlots, setCurrentDateSlots] = React.useState([...timeSlots]);
+
+            React.useEffect(() => {
+                getTimeSlotsForDate(selectedDate).then(slots => {
+                    setCurrentDateSlots(slots);
+                });
+            }, [selectedDate, timeSlots]);
+
             return (
                 <div className="min-h-screen bg-gray-100 pb-24">
                     <header className="bg-gray-900 text-white p-6 sticky top-0 z-30 shadow-xl flex justify-between items-center">
@@ -411,9 +534,13 @@
 
                     {tab === 'schedule' && (
                         <div className="p-6 space-y-6">
-                            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full p-4 rounded-2xl border-none shadow-sm font-bold text-lg" />
+                            <div className="flex justify-between items-center">
+                                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full max-w-xs p-4 rounded-2xl border-none shadow-sm font-bold text-lg" />
+                                <button onClick={() => setShowTimeSlotConfig(true)} className="ml-4 bg-blue-500 text-white px-4 py-2 rounded-xl font-bold">配置时段</button>
+                            </div>
+                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {TIME_SLOTS.map(time => {
+                                {currentDateSlots.map(time => {
                                     const app = allData.find(a => a.date === selectedDate && a.time === time && a.status !== 'cancelled');
                                     return (
                                         <div key={time} className={`p-5 rounded-3xl border-2 flex justify-between items-center transition-all ${app ? 'bg-white border-blue-500 shadow-md scale-[1.02]' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
@@ -523,6 +650,72 @@
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 时间槽配置模态框 */}
+                    {showTimeSlotConfig && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white w-full max-w-md rounded-[32px] p-8 animate-bounce-in shadow-2xl max-h-[80vh] overflow-y-auto">
+                                <h4 className="text-2xl font-black mb-6">配置营业时段</h4>
+                                
+                                <div className="mb-6">
+                                    <label className="flex items-center space-x-2 mb-4">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={applyToAll} 
+                                            onChange={e => setApplyToAll(e.target.checked)} 
+                                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-gray-700">应用到所有日期（作为默认设置）</span>
+                                    </label>
+                                    
+                                    {!applyToAll && (
+                                        <p className="text-sm text-gray-500 mb-4">当前配置将仅应用于 {selectedDate}</p>
+                                    )}
+                                </div>
+                                
+                                <div className="mb-6">
+                                    <h5 className="font-bold text-gray-800 mb-3">当前时段设置</h5>
+                                    <div className="flex flex-wrap gap-2">
+                                        {timeSlots.map(slot => (
+                                            <div key={slot} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center">
+                                                <span>{slot}</span>
+                                                <button 
+                                                    onClick={() => removeTimeSlot(slot)}
+                                                    className="ml-2 text-blue-600 hover:text-blue-800"
+                                                >
+                                                    <i className="fas fa-times text-xs"></i>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div className="mb-8">
+                                    <h5 className="font-bold text-gray-800 mb-3">添加新时段</h5>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="time"
+                                            value={newTimeSlot}
+                                            onChange={e => setNewTimeSlot(e.target.value)}
+                                            className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                        <button
+                                            onClick={addTimeSlot}
+                                            className="bg-blue-500 text-white px-4 py-3 rounded-xl font-bold"
+                                        >
+                                            添加
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">提示：使用 HH:MM 格式，例如 09:00 或 22:30</p>
+                                </div>
+                                
+                                <div className="flex space-x-4">
+                                    <button onClick={() => setShowTimeSlotConfig(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-500">取消</button>
+                                    <button onClick={handleSaveTimeSlotConfig} className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-bold shadow-xl shadow-gray-300">保存配置</button>
+                                </div>
                             </div>
                         </div>
                     )}
