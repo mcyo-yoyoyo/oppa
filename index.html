@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>欧巴工作室-您的专属美发顾问</title>
+
+    <!-- 👇 这是你新加的一行 -->
+    <link rel="manifest" href="/oppa/manifest.json">
     
     <!-- 显式定义 Vue Feature Flags 消除警告 (针对页面可能引入的 Vue 依赖) -->
     <script>
@@ -970,5 +973,12 @@ function updateStoreAddress(newAddress, newLat, newLng) {
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/oppa/service-worker.js');
+    });
+  }
+</script>
 </body>
 </html>
