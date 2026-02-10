@@ -1,3 +1,8 @@
+// 版本号：每次修改后+1
+const CACHE_VERSION = 2; 
+const CACHE_NAME = 'oppa-studio-v' + CACHE_VERSION;
+
+// ...其余代码保持不变
 const CACHE_NAME = 'oppa-studio-v1';
 const urlsToCache = [
   '/oppa/',
