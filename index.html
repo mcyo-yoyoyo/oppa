@@ -973,10 +973,13 @@ function updateStoreAddress(newAddress, newLat, newLng) {
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-    <script>
+<script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/oppa/service-worker.js');
+      // 关键：指定 scope 为 /oppa/
+      navigator.serviceWorker.register('/oppa/service-worker.js', { scope: '/oppa/' })
+        .then(reg => console.log('PWA 注册成功:', reg.scope))
+        .catch(err => console.log('PWA 注册失败:', err));
     });
   }
 </script>
