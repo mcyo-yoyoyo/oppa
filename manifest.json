@@ -7,5 +7,5 @@
   "background_color": "#ffffff",
   "theme_color": "#4A90E2",
   "orientation": "portrait",
-  "scope": "/oppa/"
+  "scope": "/"  // 这一行必须加！
 }
